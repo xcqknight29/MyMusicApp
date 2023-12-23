@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">MyMusicApplication</string>
+    <string name="main_tabitem_songs">Songs</string>
+    <string name="main_tabitem_albums">Albums</string>
+    <string name="main_tabitem_artists">Artists</string>
+    <string name="main_tabitem_playlist">Playlists</string>
+    <string name="main_tabitem_folder">Folder</string>
+    <string name="songs_shuffleplayback">Shuffle Playback</string>
+    <string name="songs_loopplay">List Loop</string>
+    <string name="songs_repeatone" >Repeat One</string>
+</resources>
