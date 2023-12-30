@@ -2,9 +2,9 @@ package com.mika.mymusicapplication.ui.components
 
 import android.annotation.SuppressLint
 import android.media.MediaPlayer
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +19,12 @@ import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,15 +37,12 @@ import com.mika.mymusicapplication.ui.theme.Pink80
 import com.mika.mymusicapplication.ui.theme.Purple40
 import com.mika.mymusicapplication.ui.theme.White
 import com.mika.mymusicapplication.viewModel.MyViewModel
-
-val temSongInfo = SongInfo(
-    "title - test",
-    "album - test",
-    "artist - test",
-    "uri - test",
-    1,
-    1
-)
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.lang.Thread.sleep
 
 /** 播放顺序模式 */
 enum class PlayMode {
@@ -63,7 +66,7 @@ class SongPlayer(
         viewModel.setCurrentPlayIndex(currentSongIndex)
         viewModel.setCurrentPlayList(currentPlayList)
         viewModel.setAlbumList(albumList)
-        mediaPlayer!!.setDataSource(currentPlayList!![currentSongIndex!!].uri)
+        mediaPlayer!!.setDataSource(currentPlayList[currentSongIndex].uri)
         mediaPlayer!!.setOnPreparedListener {
             it.start()
             viewModel.setIsPlaying(true)
@@ -76,12 +79,12 @@ class SongPlayer(
                 // 列表播放
                 PlayMode.SEQUENTIAL -> {
                     mediaPlayer!!.reset()
-                    if(currentSongIndex!! + 1 < currentPlayList!!.count()) {
-                        currentSongIndex = currentSongIndex!! + 1
-                        mediaPlayer!!.setDataSource(currentPlayList!![currentSongIndex!!].uri)
+                    if(currentSongIndex + 1 < currentPlayList.count()) {
+                        currentSongIndex += 1
+                        mediaPlayer!!.setDataSource(currentPlayList[currentSongIndex].uri)
                     } else {
                         currentSongIndex = 0
-                        mediaPlayer!!.setDataSource(currentPlayList!![currentSongIndex!!].uri)
+                        mediaPlayer!!.setDataSource(currentPlayList[currentSongIndex].uri)
                     }
                     mediaPlayer!!.prepareAsync()
                 }
@@ -91,10 +94,10 @@ class SongPlayer(
                     mediaPlayer!!.reset()
                     var targetSongIndex: Int
                     do {
-                        targetSongIndex = (0 until currentPlayList!!.count()).random()
+                        targetSongIndex = (0 until currentPlayList.count()).random()
                     } while (targetSongIndex == currentSongIndex)
                     currentSongIndex = targetSongIndex
-                    mediaPlayer!!.setDataSource(currentPlayList!![currentSongIndex!!].uri)
+                    mediaPlayer!!.setDataSource(currentPlayList[currentSongIndex].uri)
                     mediaPlayer!!.prepareAsync()
                 }
 
@@ -163,16 +166,16 @@ class SongPlayer(
     fun changeCurrentSong(songIndex: Int) {
         currentSongIndex = songIndex
         mediaPlayer!!.reset()
-        mediaPlayer!!.setDataSource(currentPlayList!![songIndex].uri)
+        mediaPlayer!!.setDataSource(currentPlayList[songIndex].uri)
         mediaPlayer!!.prepareAsync()
     }
 
     /** 根据歌曲信息更改当前播放歌曲 */
     fun changeCurrentSong(songInfo: SongInfo) {
-        var targetSongIndex = currentPlayList!!.indexOfFirst { songInfo.uri == it.uri }
+        var targetSongIndex = currentPlayList.indexOfFirst { songInfo.uri == it.uri }
         if(targetSongIndex == -1) {
-            targetSongIndex = currentPlayList!!.count()
-            currentPlayList!!.add(songInfo)
+            targetSongIndex = currentPlayList.count()
+            currentPlayList.add(songInfo)
         }
         changeCurrentSong(targetSongIndex)
     }
@@ -180,21 +183,21 @@ class SongPlayer(
     /** 播放上一首歌曲 */
     fun changeToPrevious() {
         val targetSongIndex: Int
-        if(currentSongIndex!! <= 0) {
-            targetSongIndex = currentPlayList!!.count() - 1
+        if(currentSongIndex <= 0) {
+            targetSongIndex = currentPlayList.count() - 1
         } else {
-            targetSongIndex = currentSongIndex!! - 1
+            targetSongIndex = currentSongIndex - 1
         }
         changeCurrentSong(targetSongIndex)
     }
 
-    /** 播放上一首歌曲 */
+    /** 播放下一首歌曲 */
     fun changeToNext() {
         val targetSongIndex: Int
-        if(currentSongIndex!! >= currentPlayList!!.size - 1 ) {
+        if(currentSongIndex >= currentPlayList.size - 1 ) {
             targetSongIndex = 0
         } else {
-            targetSongIndex = currentSongIndex!! + 1
+            targetSongIndex = currentSongIndex + 1
         }
         changeCurrentSong(targetSongIndex)
     }
@@ -205,6 +208,7 @@ class SongPlayer(
 fun BottomPlayer(
     currentSongInfo: SongInfo,
     isPlaying: Boolean,
+    onFooterClick: () -> Unit,
     onPlayButtonClick: () -> Unit,
     onChangeToPrevious: () -> Unit,
     onChangeToNext: () -> Unit,
@@ -212,6 +216,7 @@ fun BottomPlayer(
 ) {
     Row (
         modifier = modifier
+            .clickable { onFooterClick() }
             .height(65.dp)
             .background(Purple40)
             .height(64.dp)
@@ -272,7 +277,17 @@ fun BottomPlayer(
 /** 歌曲详细 */
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
-fun SongPlayer(songInfo: SongInfo, modifier: Modifier = Modifier) {
+fun SongPage(
+    songInfo: SongInfo,
+    isPlaying: Boolean,
+    onBackButtonClick: () -> Unit,
+    getPosition: () -> Float,
+    onSliderChange: (Float) -> Unit,
+    onPlayButtonClick: () -> Unit,
+    onChangeToPrevious: () -> Unit,
+    onChangeToNext: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier.fillMaxHeight(),
         verticalArrangement = Arrangement.SpaceBetween,
@@ -284,18 +299,17 @@ fun SongPlayer(songInfo: SongInfo, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = { onBackButtonClick() }, modifier = modifier.weight(0.15f)) {
                 Icon(
                     painterResource(R.drawable.player_backarrow),
-                    "back",
-                    tint = Color.White
+                    "back"
                 )
             }
-            Column {
-                Text(songInfo.title)
-                Text(songInfo.artist)
+            Column(modifier = modifier.weight(0.7f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(songInfo.title, maxLines = 1)
+                Text(songInfo.artist, maxLines = 1)
             }
-            IconButton(onClick = { /*TODO*/ }, Modifier.align(Alignment.Bottom)) {
+            IconButton(onClick = { /*TODO*/ }, Modifier.weight(0.15f).align(Alignment.Bottom)) {
                 Icon(
                     painterResource(R.drawable.more_buttom),
                     "menu_trigger"
@@ -314,11 +328,10 @@ fun SongPlayer(songInfo: SongInfo, modifier: Modifier = Modifier) {
         )
 
         // 进度条
-        Slider(
-            value = 0f,
-            onValueChange = { /*TODO*/ },
-            modifier = Modifier.padding(horizontal = 32.dp),
-            colors = SliderDefaults.colors()
+        PlayerSlider(
+            getPosition = getPosition,
+            onValueChange = { onSliderChange(it) },
+            modifier = Modifier.padding(horizontal = 32.dp)
         )
 
         // 底端操作栏
@@ -334,19 +347,22 @@ fun SongPlayer(songInfo: SongInfo, modifier: Modifier = Modifier) {
                     "loop"
                 )
             }
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = { onChangeToPrevious() }) {
                 Icon(
                     painterResource(R.drawable.player_previous),
                     "previous"
                 )
             }
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = { onPlayButtonClick() }) {
                 Icon(
-                    painterResource(R.drawable.player_playarrow),
-                    "play"
+                    if(isPlaying)
+                        painterResource(R.drawable.player_pause)
+                    else
+                        painterResource(R.drawable.player_playarrow),
+                    "pauseOrPlay"
                 )
             }
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = { onChangeToNext() }) {
                 Icon(
                     painterResource(R.drawable.player_next),
                     "next"
@@ -362,6 +378,32 @@ fun SongPlayer(songInfo: SongInfo, modifier: Modifier = Modifier) {
     }
 }
 
+/** 进度条 */
+@OptIn(DelicateCoroutinesApi::class)
+@SuppressLint("CoroutineCreationDuringComposition")
+@Composable
+fun PlayerSlider(
+    getPosition: () -> Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var position by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(key1 = true) {
+        while (true) {
+            delay(1000)
+            position = getPosition()
+        }
+    }
+
+    Slider(
+        value = position,
+        onValueChange =  onValueChange,
+        modifier = modifier,
+        colors = SliderDefaults.colors()
+    )
+}
+
 /** 显示当前播放列表 */
 @Composable
 fun PlayList(modifier: Modifier = Modifier) {}
@@ -369,5 +411,14 @@ fun PlayList(modifier: Modifier = Modifier) {}
 @Preview(showBackground = true, backgroundColor = 0xFF4B4D5A)
 @Composable
 fun SongPlayerPreview() {
-    SongPlayer(temSongInfo)
+    val temSongInfo = SongInfo(
+        "title - test",
+        "album - test",
+        "artist - test",
+        "uri - test",
+        1,
+        1
+    )
+
+    SongPage(temSongInfo, true,  {}, { 0f }, {}, {}, {}, {})
 }

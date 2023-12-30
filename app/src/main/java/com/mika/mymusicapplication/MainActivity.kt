@@ -8,6 +8,7 @@ import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -26,8 +27,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,10 +52,12 @@ import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.ui.components.AlbumList
 import com.mika.mymusicapplication.ui.components.SongPlayer
 import com.mika.mymusicapplication.ui.components.PlayingList
+import com.mika.mymusicapplication.ui.components.SongPage
 import com.mika.mymusicapplication.ui.theme.MyMusicApplicationTheme
 import com.mika.mymusicapplication.ui.theme.Purple40
 import com.mika.mymusicapplication.ui.theme.White
 import com.mika.mymusicapplication.viewModel.MyViewModel
+import kotlinx.coroutines.delay
 
 var songPlayer: SongPlayer? = null // 播放控制
 var alertDialogBuilder: AlertDialog.Builder? = null // 对话框构造器
@@ -170,38 +176,72 @@ class MainActivity : ComponentActivity() {
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
 fun MainContent(modifier: Modifier = Modifier) {
+    val mediaPlayer: MediaPlayer? = songPlayer!!.mediaPlayer
+    val viewModel: MyViewModel = songPlayer!!.viewModel
     val navController: NavHostController = rememberNavController()
+    val currentPlayList = viewModel.currentPlayList.observeAsState().value!!
+    val currentPlayIndex = viewModel.currentPlayIndex.observeAsState().value!!
+
+    var showSongPlayer: Boolean by remember { mutableStateOf(false) }
+
+    val showSongPLayer: () -> Unit = { showSongPlayer = true }
+    val hiddenSongPlayer: () -> Unit = { showSongPlayer = false }
+    val getPosition: () -> Float = ::getPosition
+    val onSliderChange: (Float) -> Unit = { mediaPlayer!!.seekTo((mediaPlayer.duration.toFloat() * it).toInt()) }
+
     MyMusicApplicationTheme {
-        Scaffold (
-            modifier = modifier,
-            topBar = {
-                Column {
-                    TopBar()
-                    TopTab(navController)
+        val isPlaying = viewModel.isPlaying.observeAsState()
+
+        if (showSongPlayer) {
+            SongPage(
+                currentPlayList[currentPlayIndex],
+                isPlaying.value!!,
+                hiddenSongPlayer,
+                getPosition,
+                onSliderChange,
+                songPlayer!!::changePlayState,
+                songPlayer!!::changeToPrevious,
+                songPlayer!!::changeToNext,
+            )
+        } else {
+            Scaffold (
+                modifier = modifier,
+                topBar = {
+                    Column {
+                        TopBar()
+                        TopTab(navController)
+                    }
+                },
+                bottomBar = {
+                    val currentPlayIndex = songPlayer!!.viewModel.currentPlayIndex.observeAsState()
+                    BottomPlayer(
+                        songPlayer!!.currentPlayList[currentPlayIndex.value!!],
+                        isPlaying.value!!,
+                        showSongPLayer,
+                        songPlayer!!::changePlayState,
+                        songPlayer!!::changeToPrevious,
+                        songPlayer!!::changeToNext,
+                        Modifier.height(65.dp)
+                    )
                 }
-            },
-            bottomBar = {
-                val isPlaying = songPlayer!!.viewModel.isPlaying.observeAsState()
-                val currentPlayIndex = songPlayer!!.viewModel.currentPlayIndex.observeAsState()
-                BottomPlayer(
-                    songPlayer!!.currentPlayList[currentPlayIndex.value!!],
-                    isPlaying.value!!,
-                    songPlayer!!::changePlayState,
-                    songPlayer!!::changeToPrevious,
-                    songPlayer!!::changeToNext,
-                    Modifier.height(65.dp)
+            ) {
+                MyNavHost(
+                    startDestination = "Songs",
+                    onClickPlayMode = songPlayer!!::changePlayMode,
+                    onCurrentSongChange = songPlayer!!::changeCurrentSong,
+                    modifier = Modifier.padding(8.dp, 0.dp),
+                    navController = navController,
                 )
             }
-        ) {
-            MyNavHost(
-                startDestination = "Songs",
-                onClickPlayMode = songPlayer!!::changePlayMode,
-                onCurrentSongChange = songPlayer!!::changeCurrentSong,
-                modifier = Modifier.padding(8.dp, 0.dp),
-                navController = navController,
-            )
         }
     }
+}
+
+/** 以Float形式返回当前播放进度 */
+fun getPosition(): Float {
+    Log.i("", "test log")
+    val position = songPlayer!!.mediaPlayer!!.currentPosition.toFloat() / songPlayer!!.mediaPlayer!!.duration.toFloat()
+    return if (!position.isNaN()) position else 0f
 }
 
 /** NavHost 用于显示切换正文内容组件? */

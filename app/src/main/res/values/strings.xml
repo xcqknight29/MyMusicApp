@@ -8,4 +8,7 @@
     <string name="songs_shuffleplayback">Shuffle Playback</string>
     <string name="songs_loopplay">List Loop</string>
     <string name="songs_repeatone" >Repeat One</string>
+    <string name="remove">remove</string>
+    <string name="position">position</string>
+    <string name="song_details">song details</string>
 </resources>

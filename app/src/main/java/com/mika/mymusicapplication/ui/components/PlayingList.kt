@@ -98,8 +98,8 @@ fun SongItem(item: SongInfo, onCurrentSongChange: (SongInfo) -> Unit, modifier: 
             Modifier
                 .padding(horizontal = 4.dp)
         ) {
-            Text(item.title, Modifier.fillMaxWidth(0.9f))
-            Text(item.album, Modifier.fillMaxWidth(0.9f))
+            Text(item.title, Modifier.fillMaxWidth(0.9f), maxLines = 1)
+            Text(item.album, Modifier.fillMaxWidth(0.9f), maxLines = 1)
         }
         var showMenu by remember { mutableStateOf(false) }
         Column() {
@@ -111,9 +111,9 @@ fun SongItem(item: SongInfo, onCurrentSongChange: (SongInfo) -> Unit, modifier: 
                     .clickable { showMenu = true }
             )
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                DropdownMenuItem(text = { Text("item1") }, onClick = { /*TODO*/ })
-                DropdownMenuItem(text = { Text("item1") }, onClick = { /*TODO*/ })
-                DropdownMenuItem(text = { Text("item1") }, onClick = { /*TODO*/ })
+                DropdownMenuItem(text = { Text(stringResource(R.string.position)) }, onClick = { /*TODO*/ })
+                DropdownMenuItem(text = { Text(stringResource(R.string.song_details)) }, onClick = { /*TODO*/ })
+                DropdownMenuItem(text = { Text(stringResource(R.string.remove)) }, onClick = { /*TODO*/ })
             }
         }
     }
