@@ -27,11 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,13 +54,11 @@ import com.mika.mymusicapplication.ui.theme.MyMusicApplicationTheme
 import com.mika.mymusicapplication.ui.theme.Purple40
 import com.mika.mymusicapplication.ui.theme.White
 import com.mika.mymusicapplication.viewModel.MyViewModel
-import kotlinx.coroutines.delay
 
 var songPlayer: SongPlayer? = null // 播放控制
 var alertDialogBuilder: AlertDialog.Builder? = null // 对话框构造器
 
 class MainActivity : ComponentActivity() {
-
     // 生命周期函数: 创建
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,6 +101,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         songPlayer?.mediaPlayer?.release()
+        songPlayer?.mediaPlayer = null
         songPlayer = null
         alertDialogBuilder = null
     }
@@ -213,9 +209,8 @@ fun MainContent(modifier: Modifier = Modifier) {
                     }
                 },
                 bottomBar = {
-                    val currentPlayIndex = songPlayer!!.viewModel.currentPlayIndex.observeAsState()
                     BottomPlayer(
-                        songPlayer!!.currentPlayList[currentPlayIndex.value!!],
+                        songPlayer!!.currentPlayList[currentPlayIndex],
                         isPlaying.value!!,
                         showSongPLayer,
                         songPlayer!!::changePlayState,
@@ -239,7 +234,7 @@ fun MainContent(modifier: Modifier = Modifier) {
 
 /** 以Float形式返回当前播放进度 */
 fun getPosition(): Float {
-    Log.i("", "test log")
+//    Log.i("", "test log")
     val position = songPlayer!!.mediaPlayer!!.currentPosition.toFloat() / songPlayer!!.mediaPlayer!!.duration.toFloat()
     return if (!position.isNaN()) position else 0f
 }
@@ -259,7 +254,7 @@ fun MyNavHost(
     ) {
         composable("Songs") {
             PlayingList(
-                songPlayer!!.currentPlayList!!,
+                songPlayer!!.currentPlayList,
                 onClickPlayMode,
                 onCurrentSongChange
             )

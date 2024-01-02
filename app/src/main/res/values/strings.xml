@@ -11,4 +11,10 @@
     <string name="remove">remove</string>
     <string name="position">position</string>
     <string name="song_details">song details</string>
+    <string name="song_alert">
+        <b>Title:</b>\t %s \n<b>Album:</b>\t %s \n<b>Artist:</b>\t %s \n<b>Uri:</b>\t %s \n<b>Total time:</b>\t %s \n<b>File size:</b>\t %s
+    </string>
+    <string name="album_detail">Album detail</string>
+    <string name="add_playlist">Add to playlist</string>
+    <string name="delete_album">Delete from device</string>
 </resources>

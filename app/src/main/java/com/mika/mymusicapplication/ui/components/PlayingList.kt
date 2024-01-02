@@ -44,17 +44,18 @@ fun PlayingList(
 ) {
     LazyColumn (modifier = modifier) {
         item {
+            var showMenu by remember { mutableStateOf(false) }
             Row(
                 modifier = Modifier
-                    .clickable { onClickPlayMode() }
+                    .clickable { showMenu = !showMenu }
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val songsIconStyle = Modifier.size(30.dp)
                 val playTextStyle = Modifier.padding(horizontal = 4.dp)
-                val playMode = songPlayer!!.viewModel.playMode.observeAsState()
-                when (playMode.value) {
+                val playMode = songPlayer!!.viewModel.playMode.observeAsState().value
+                when (playMode) {
                     PlayMode.SEQUENTIAL -> {
                         Icon(painterResource(R.drawable.songs_repeat), "list_repeat", songsIconStyle)
                         Text(stringResource(R.string.songs_loopplay), playTextStyle)
@@ -68,6 +69,34 @@ fun PlayingList(
                         Text(stringResource(R.string.songs_repeatone), playTextStyle)
                     }
                 }
+
+            }
+            // 下拉菜单
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.songs_loopplay)) },
+                    onClick = {
+                        songPlayer!!.changePlayMode(PlayMode.SEQUENTIAL)
+                        showMenu = false
+                    },
+                    leadingIcon = { Icon(painterResource(R.drawable.songs_repeat), "list_repeat") }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.songs_shuffleplayback)) },
+                    onClick = {
+                        songPlayer!!.changePlayMode(PlayMode.SHUFFLE)
+                        showMenu = false
+                    },
+                    leadingIcon = { Icon(painterResource(R.drawable.songs_shuffle), "random") }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.songs_repeatone)) },
+                    onClick = {
+                        songPlayer!!.changePlayMode(PlayMode.LOOP)
+                        showMenu = false
+                    },
+                    leadingIcon = { Icon(painterResource(R.drawable.songs_repeatone), "repeat_one") }
+                )
             }
         }
         items(currentPlayerList) { item -> SongItem(item, onCurrentSongChange,
@@ -102,7 +131,7 @@ fun SongItem(item: SongInfo, onCurrentSongChange: (SongInfo) -> Unit, modifier: 
             Text(item.album, Modifier.fillMaxWidth(0.9f), maxLines = 1)
         }
         var showMenu by remember { mutableStateOf(false) }
-        Column() {
+        Column {
             Icon(
                 painterResource(R.drawable.more_buttom),
                 "more",
@@ -122,7 +151,7 @@ fun SongItem(item: SongInfo, onCurrentSongChange: (SongInfo) -> Unit, modifier: 
 @Preview(showBackground = true)
 @Composable
 fun SongsPreview() {
-    val temSongsInfo = MutableList<SongInfo>(30) { index -> SongInfo(
+    val temSongsInfo = MutableList(30) { index -> SongInfo(
         "Song - $index",
         "album - $index",
         "artist - $index",
