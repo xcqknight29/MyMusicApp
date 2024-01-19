@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -18,8 +19,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,19 +30,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.unit.sp
 import com.mika.mymusicapplication.R
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.songPlayer
 
 /** 当前播放歌曲列表 */
 @Composable
-fun PlayingList(
-    currentPlayerList: MutableList<SongInfo>,
-    onClickPlayMode: () -> Unit,
-    onCurrentSongChange: (SongInfo) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun CurrentPlayingList(modifier: Modifier = Modifier) {
+    val currentPlayList = songPlayer!!.viewModel.currentPlayList.collectAsState().value
+
     LazyColumn (modifier = modifier) {
         item {
             var showMenu by remember { mutableStateOf(false) }
@@ -52,9 +50,11 @@ fun PlayingList(
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
                 val songsIconStyle = Modifier.size(30.dp)
                 val playTextStyle = Modifier.padding(horizontal = 4.dp)
-                val playMode = songPlayer!!.viewModel.playMode.observeAsState().value
+                val playMode by songPlayer!!.viewModel.playMode.collectAsState()
+
                 when (playMode) {
                     PlayMode.SEQUENTIAL -> {
                         Icon(painterResource(R.drawable.songs_repeat), "list_repeat", songsIconStyle)
@@ -69,7 +69,6 @@ fun PlayingList(
                         Text(stringResource(R.string.songs_repeatone), playTextStyle)
                     }
                 }
-
             }
             // 下拉菜单
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -99,65 +98,83 @@ fun PlayingList(
                 )
             }
         }
-        items(currentPlayerList) { item -> SongItem(item, onCurrentSongChange,
-            Modifier
-                .height(48.dp)
-                .fillMaxWidth()) }
+        items(currentPlayList) { item ->
+            SongItem(
+                item,
+                Modifier
+                    .height(48.dp)
+                    .fillMaxWidth()
+            ) { expanded, onDismissRequest ->
+                DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest) {
+                    DropdownMenuItem(text = { /*TODO*/ }, onClick = { /*TODO*/ })
+                }
+            }
+        }
         item { Spacer(Modifier.height(55.dp)) }
     }
 }
 
+
+
+/** 单首歌曲项 */
 @Composable
-fun SongItem(item: SongInfo, onCurrentSongChange: (SongInfo) -> Unit, modifier: Modifier = Modifier) {
+fun SongItem(
+    item: SongInfo,
+    modifier: Modifier = Modifier,
+    dropdownMenu: @Composable ((expanded: Boolean, onDismissRequest: () -> Unit) -> Unit)? = null
+) {
+
     Row(
-        modifier = modifier.clickable {
-            onCurrentSongChange(item)
-        },
+        modifier = modifier
+            .heightIn(min = 32.dp)
+            .clickable { songPlayer!!.changeCurrentSong(item) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            painterResource(R.drawable.song_cover_test),
-            "cover",
-            Modifier
-                .fillMaxHeight()
-                .size(48.dp)
-        )
-        Column(
-            Modifier
-                .padding(horizontal = 4.dp)
-        ) {
-            Text(item.title, Modifier.fillMaxWidth(0.9f), maxLines = 1)
-            Text(item.album, Modifier.fillMaxWidth(0.9f), maxLines = 1)
-        }
+
+        // 是否显示菜单
         var showMenu by remember { mutableStateOf(false) }
+
         Column {
-            Icon(
-                painterResource(R.drawable.more_buttom),
-                "more",
+            // 歌曲标题
+            Text(
+                item.title,
                 Modifier
-                    .requiredSize(32.dp)
-                    .clickable { showMenu = true }
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(0.9f),
+                fontSize = 18.sp,
+                maxLines = 1
             )
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.position)) }, onClick = { /*TODO*/ })
-                DropdownMenuItem(text = { Text(stringResource(R.string.song_details)) }, onClick = { /*TODO*/ })
-                DropdownMenuItem(text = { Text(stringResource(R.string.remove)) }, onClick = { /*TODO*/ })
+            // 作者
+            Text(
+                item.artist,
+                Modifier.padding(horizontal = 16.dp),
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        }
+
+        if (dropdownMenu != null) {
+            Column {
+                // 按下呼出下拉菜单
+                Icon(
+                    painterResource(R.drawable.more_buttom),
+                    "more",
+                    Modifier
+                        .requiredSize(32.dp)
+                        .clickable { showMenu = true }
+                )
+                dropdownMenu(showMenu, { showMenu = false })
             }
         }
+
     }
+
 }
 
 @Preview(showBackground = true)
 @Composable
 fun SongsPreview() {
-    val temSongsInfo = MutableList(30) { index -> SongInfo(
-        "Song - $index",
-        "album - $index",
-        "artist - $index",
-        "test uri - $index",
-        1,
-        1
-    )}
-    PlayingList(temSongsInfo, {}, {}, Modifier.padding(8.dp, 0.dp))
+    val songInfo = SongInfo("song1song1song1", "", "", "", 0, 0)
+    SongItem(songInfo)
 }

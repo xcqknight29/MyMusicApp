@@ -53,6 +53,7 @@ dependencies {
     val fragment_version = "1.6.2"
     val nav_version = "2.5.3"
     val compose_version = "1.5.4"
+    val gson_version = "2.8.5"
 
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
@@ -65,7 +66,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:$compose_version")
     implementation("androidx.compose.runtime:runtime-livedata:$compose_version")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material:1.3.1")
+//    implementation("androidx.compose.material:material:1.3.1")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
@@ -73,4 +74,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation("com.google.code.gson:gson:$gson_version")
 }

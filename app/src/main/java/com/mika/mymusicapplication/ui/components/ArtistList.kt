@@ -1,6 +1,5 @@
 package com.mika.mymusicapplication.ui.components
 
-import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,26 +35,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.mika.mymusicapplication.R
-import com.mika.mymusicapplication.alertDialogBuilder
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.songPlayer
 
-/** 专辑列表 */
+/** 艺术家列表 */
 @Composable
-fun AlbumList(
+fun ArtistList(
     onItemClick: (List<SongInfo>) -> Unit,
     addToPlaylist: (List<SongInfo>) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
 
-    val albumListMap by songPlayer!!.viewModel.albumMap.collectAsState()
+    val artistListMap by songPlayer!!.viewModel.artistMap.collectAsState()
 
     Column(
         modifier
@@ -85,17 +81,17 @@ fun AlbumList(
 
         if (itemDisplay == 0) {
             LazyColumn {
-                albumListMap.forEach {
+                artistListMap.forEach {
                     item {
-                        AlbumColumnItem(it.key, it.value, onItemClick, addToPlaylist, Modifier.fillMaxWidth())
+                        ArtistColumnItem(it.key, it.value, onItemClick, addToPlaylist, Modifier.fillMaxWidth())
                     }
                 }
             }
         } else {
             LazyVerticalGrid(GridCells.Adaptive(minSize = 100.dp)) {
-                albumListMap.forEach {
+                artistListMap.forEach {
                     item {
-                        AlbumGridItem(it.key, it.value, onItemClick, addToPlaylist)
+                        ArtistGridItem(it.key, it.value, onItemClick, addToPlaylist)
                     }
                 }
             }
@@ -108,7 +104,7 @@ fun AlbumList(
 }
 
 @Composable
-fun AlbumColumnItem(
+fun ArtistColumnItem(
     title: String,
     dataList: List<SongInfo>,
     onItemClick: (List<SongInfo>) -> Unit,
@@ -139,9 +135,7 @@ fun AlbumColumnItem(
 
         Column(Modifier.fillMaxWidth(0.8f)) {
             // 专辑标题
-            Text(text = title, fontSize = 18.sp, maxLines = 1)
-            // 专辑作者
-            Text(text = dataList[0].artist, fontSize = 14.sp, maxLines = 1)
+            Text(title, maxLines = 2)
         }
 
         Column {
@@ -152,7 +146,7 @@ fun AlbumColumnItem(
             }
 
             // 下拉菜单
-            AlbumDropdownMenu(showDropDownMenu, dataList, { showDropDownMenu = false }, selectAlbumToAdd)
+            ArtistDropdownMenu(showDropDownMenu, dataList, { showDropDownMenu = false }, selectAlbumToAdd)
 
         }
 
@@ -161,7 +155,7 @@ fun AlbumColumnItem(
 }
 
 @Composable
-fun AlbumGridItem(
+fun ArtistGridItem(
     title: String,
     dataList: List<SongInfo>,
     onItemClick: (List<SongInfo>) -> Unit,
@@ -172,6 +166,7 @@ fun AlbumGridItem(
         modifier
             .padding(2.dp)
             .fillMaxWidth()
+            .clickable { onItemClick(dataList) }
     ) {
 
         var showMenu: Boolean by remember { mutableStateOf(false) }
@@ -180,7 +175,7 @@ fun AlbumGridItem(
             Modifier.pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = { showMenu = !showMenu },
-                    onPress = { onItemClick(dataList) }
+                    onPress = {  }
                 )
             }
         ) {
@@ -205,7 +200,7 @@ fun AlbumGridItem(
             }
 
             // 下拉菜单
-            AlbumDropdownMenu(showMenu, dataList, { showMenu = false }, selectAlbumToAdd)
+            ArtistDropdownMenu(showMenu, dataList, { showMenu = false }, selectAlbumToAdd)
 
         }
     }
@@ -213,30 +208,19 @@ fun AlbumGridItem(
 
 /** 专辑用下拉菜单 */
 @Composable
-fun AlbumDropdownMenu(
+fun ArtistDropdownMenu(
     expanded: Boolean,
     songsData: List<SongInfo>,
     onDismissRequest: () -> Unit,
     onAddToPlaylistHandler: (List<SongInfo>) -> Unit,
     modifier: Modifier = Modifier
 ) {
-
-    // 获取上下文
-    val currentContext = LocalContext.current
-
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        modifier = modifier
+        modifier
     ) {
-
-        // 详情
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.album_detail)) },
-            onClick = { showAlbumDetail(currentContext, songsData) }
-        )
-
-        // 全部加入当前播放列表
+        // 全部加入当前歌单
         DropdownMenuItem(
             text = { Text(stringResource(R.string.add_to_current_playlist)) },
             onClick = {
@@ -244,7 +228,6 @@ fun AlbumDropdownMenu(
                 onDismissRequest()
             }
         )
-
         // 全部加入其他歌单
         DropdownMenuItem(
             text = { Text(stringResource(R.string.add_other_playlist)) },
@@ -253,72 +236,40 @@ fun AlbumDropdownMenu(
                 onDismissRequest()
             }
         )
-
         // 从设备中删除
         DropdownMenuItem(
             text = { Text(stringResource(R.string.delete_from_device)) },
             onClick = { /*TODO*/ }
         )
-
     }
-
-}
-
-/** 显示专辑详情 */
-fun showAlbumDetail(context: Context, albumSongList: List<SongInfo>) {
-    // 从上下文资源中获取字符串并将其格式化
-    val str: String =
-        context.resources.getString(R.string.album_info)
-            .format(albumSongList[0].album, albumSongList.size, albumSongList[0].artist)
-    // 获取对话框对象
-    val alertDialog = alertDialogBuilder!!
-    // 设置对话框的文本
-    alertDialog.setMessage(str)
-    // 显示对话框
-    alertDialog.show()
 }
 
 @Preview(showBackground = true)
 @Composable
-fun AlbumListPreview() {
+fun ArtistListPreview() {
 
-//    val albumList = MutableList(8) { albumIndex ->
-//        MutableList(4) { songIndex ->
-//            SongInfo(
-//                "song - $songIndex",
-//                "album - $albumIndex",
-//                "artist - $albumIndex",
-//                "uri - $songIndex",
-//                0,
-//                0
-//            )
-//        }
-//    }
-
-//    val album = MutableList(4) { songIndex ->
-//        SongInfo(
-//            "song - $songIndex",
-//            "album - 1 album - 1 album - 1 album - 1 album - 1 album - 1 album - 1 album - 1",
-//            "artist - 1",
-//            "uri - $songIndex",
-//            0,
-//            0
-//        )
-//    }
-
-//    albumList.add(1, album)
-
-    val albumList = List(4) { songIndex ->
+    val artistList = MutableList(8) {artistIndex ->
+        MutableList(4) { songIndex ->
+            SongInfo(
+                "song - $songIndex",
+                "album - $artistIndex",
+                "artist - $artistIndex",
+                "uri - $songIndex",
+                0,
+                0
+            )
+        }
+    }
+    val artist = MutableList(4) { songIndex ->
         SongInfo(
-            "song1",
-            "album1",
-            "artist1",
-            "uri1",
+            "song - $songIndex",
+            "album - 1",
+            "artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 ",
+            "uri - $songIndex",
             0,
             0
         )
     }
-
-    AlbumColumnItem("song1", albumList, {}, {})
+    artistList.add(1, artist)
 
 }

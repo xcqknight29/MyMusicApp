@@ -2,13 +2,10 @@ package com.mika.mymusicapplication
 
 import android.Manifest.permission.READ_EXTERNAL_STORAGE
 import android.Manifest.permission.READ_MEDIA_AUDIO
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -17,10 +14,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.Scaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -28,7 +25,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,18 +43,26 @@ import com.mika.mymusicapplication.ui.components.BottomPlayer
 import com.mika.mymusicapplication.ui.components.PlayMode
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.ui.components.AlbumList
+import com.mika.mymusicapplication.ui.components.ArtistList
+import com.mika.mymusicapplication.ui.components.Folders
 import com.mika.mymusicapplication.ui.components.SongPlayer
-import com.mika.mymusicapplication.ui.components.PlayingList
+import com.mika.mymusicapplication.ui.components.CurrentPlayingList
+import com.mika.mymusicapplication.ui.components.PlaylistSelections
+import com.mika.mymusicapplication.ui.components.Playlists
+import com.mika.mymusicapplication.ui.components.SongList
 import com.mika.mymusicapplication.ui.components.SongPage
+import com.mika.mymusicapplication.ui.components.SongsFromPlaylist
 import com.mika.mymusicapplication.ui.theme.MyMusicApplicationTheme
 import com.mika.mymusicapplication.ui.theme.Purple40
 import com.mika.mymusicapplication.ui.theme.White
+import com.mika.mymusicapplication.util.StorageHandler
 import com.mika.mymusicapplication.viewModel.MyViewModel
 
 var songPlayer: SongPlayer? = null // 播放控制
 var alertDialogBuilder: AlertDialog.Builder? = null // 对话框构造器
 
 class MainActivity : ComponentActivity() {
+
     // 生命周期函数: 创建
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,198 +85,180 @@ class MainActivity : ComponentActivity() {
         // 创建弹窗构造器
         alertDialogBuilder = AlertDialog.Builder(this)
 
+        // 创建存储操作对象
+        val storageHandler = StorageHandler(this)
+
         // 从MediaStore中获取歌曲列表
-        val currentPlayList = getSongsByMediaStore()
+        val currentPlayList = storageHandler.getSongsByMediaStore(contentResolver)
 
         // 从MediaStore中获取专辑列表
-        val albumList = getAlbumByMediaStore()
+        val albumList = storageHandler.getAlbumByMediaStore(contentResolver)
+
+        // 从MediaStore中获取艺术家列表
+        val artistList = storageHandler.getArtistByMediaStore(contentResolver)
+
+        // 获取歌单
+        val playlists = storageHandler.getPlaylistFromStorage()
+
+        // 创建媒体播放器
+        val mediaPlayer = MediaPlayer()
 
         // 创建视图模型，用于实现UI与数据绑定
         val viewModel: MyViewModel by viewModels()
 
+        // 设置播放模式为顺序播放
+        val playMode: PlayMode = PlayMode.SEQUENTIAL
+
         // 创建播放器对象
-        songPlayer = SongPlayer(0, currentPlayList, albumList, MediaPlayer(), viewModel, PlayMode.SEQUENTIAL)
+        songPlayer = SongPlayer(
+            0,
+            currentPlayList,
+            playMode,
+            albumList,
+            artistList,
+            playlists,
+            mediaPlayer,
+            viewModel,
+            storageHandler,
+        )
 
         // 创建界面
         setContent { MainContent() }
+
     }
 
     // 生命周期函数: 销毁
     override fun onDestroy() {
+
         super.onDestroy()
+
         songPlayer?.mediaPlayer?.release()
         songPlayer?.mediaPlayer = null
         songPlayer = null
+
         alertDialogBuilder = null
+
     }
 
-    /** 从MediaStore中获取专辑 */
-    fun getAlbumByMediaStore(): MutableList<MutableList<SongInfo>> {
-        val albumList = mutableSetOf<String>()
-        val albumSongList = mutableListOf<MutableList<SongInfo>>()
-        contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            null,
-            null,
-            null,
-            MediaStore.Audio.Media.ALBUM
-        )?.use {cursor ->
-        if (cursor.moveToFirst()) {
-                do {
-                    if (albumList.find { cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) == it } == null) {
-                        albumList.add(cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)))
-                        albumSongList.add(mutableListOf())
-                    }
-                    albumSongList[albumList.size - 1].add(
-                        SongInfo(
-                            title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)),
-                            album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)),
-                            artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)),
-                            uri = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)),
-                            duration = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)),
-                            size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)),
-                        )
-                    )
-                } while (cursor.moveToNext())
-            }
-        }
-        return albumSongList
-    }
-
-    /** 从MediaStore中重新获取歌曲信息 */
-    fun getSongsByMediaStore(): MutableList<SongInfo> {
-        val playList = mutableListOf<SongInfo>()
-        contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            null,
-            null,
-            null,
-            MediaStore.Audio.Media.TITLE
-        )?.use { cursor ->
-            if(cursor.moveToFirst()) {
-                do {
-                    playList.add(
-                        SongInfo(
-                            title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)),
-                            album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)),
-                            artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)),
-                            uri = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)),
-                            duration = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)),
-                            size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)),
-                        )
-                    )
-                } while(cursor.moveToNext())
-            }
-        }
-        return playList
-    }
 }
 
 /** App主界面 */
-@SuppressLint("UnusedMaterialScaffoldPaddingParameter")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainContent(modifier: Modifier = Modifier) {
-    val mediaPlayer: MediaPlayer? = songPlayer!!.mediaPlayer
-    val viewModel: MyViewModel = songPlayer!!.viewModel
-    val navController: NavHostController = rememberNavController()
-    val currentPlayList = viewModel.currentPlayList.observeAsState().value!!
-    val currentPlayIndex = viewModel.currentPlayIndex.observeAsState().value!!
 
-    var showSongPlayer: Boolean by remember { mutableStateOf(false) }
-
-    val showSongPLayer: () -> Unit = { showSongPlayer = true }
-    val hiddenSongPlayer: () -> Unit = { showSongPlayer = false }
-    val getPosition: () -> Float = ::getPosition
-    val onSliderChange: (Float) -> Unit = { mediaPlayer!!.seekTo((mediaPlayer.duration.toFloat() * it).toInt()) }
+    // 用于切换是否显示歌曲播放界面的navController
+    val songPlayerNavController: NavHostController = rememberNavController()
+    // 用于切换主界面显示的navController
+    val mainNavController: NavHostController = rememberNavController()
 
     MyMusicApplicationTheme {
-        val isPlaying = viewModel.isPlaying.observeAsState()
 
-        if (showSongPlayer) {
-            SongPage(
-                currentPlayList[currentPlayIndex],
-                isPlaying.value!!,
-                hiddenSongPlayer,
-                getPosition,
-                onSliderChange,
-                songPlayer!!::changePlayState,
-                songPlayer!!::changeToPrevious,
-                songPlayer!!::changeToNext,
-            )
-        } else {
-            Scaffold (
-                modifier = modifier,
-                topBar = {
-                    Column {
+        // NavHost用于接受导航消息并切换显示正文内容
+        NavHost(
+            navController = songPlayerNavController,
+            startDestination = "MainSpace",
+            modifier = modifier
+        ) {
+
+            // 主界面
+            composable("MainSpace") {
+                Scaffold (
+                    topBar = { Column {
                         TopBar()
-                        TopTab(navController)
-                    }
-                },
-                bottomBar = {
-                    BottomPlayer(
-                        songPlayer!!.currentPlayList[currentPlayIndex],
-                        isPlaying.value!!,
-                        showSongPLayer,
-                        songPlayer!!::changePlayState,
-                        songPlayer!!::changeToPrevious,
-                        songPlayer!!::changeToNext,
-                        Modifier.height(65.dp)
-                    )
+                        TopTab(mainNavController)
+                    } },
+                    bottomBar = { BottomPlayer(
+                        onFooterClick = { songPlayerNavController.navigate("SongPlayer") },
+                        modifier = Modifier.height(65.dp)
+                    ) }
+                ) {
+                    SongsManage(mainNavController, Modifier.padding(it))
                 }
-            ) {
-                MyNavHost(
-                    startDestination = "Songs",
-                    onClickPlayMode = songPlayer!!::changePlayMode,
-                    onCurrentSongChange = songPlayer!!::changeCurrentSong,
-                    modifier = Modifier.padding(8.dp, 0.dp),
-                    navController = navController,
+            }
+
+            // 播放页面
+            composable("SongPlayer") {
+                SongPage(
+                    onBackButtonClick = { songPlayerNavController.popBackStack() },
                 )
             }
+
         }
+
     }
+
 }
 
-/** 以Float形式返回当前播放进度 */
-fun getPosition(): Float {
-//    Log.i("", "test log")
-    val position = songPlayer!!.mediaPlayer!!.currentPosition.toFloat() / songPlayer!!.mediaPlayer!!.duration.toFloat()
-    return if (!position.isNaN()) position else 0f
-}
-
-/** NavHost 用于显示切换正文内容组件? */
+/** 一个NavHost，用于显示可切换主界面 */
 @Composable
-fun MyNavHost(
-    startDestination: String,
-    onClickPlayMode: () -> Unit,
-    onCurrentSongChange: (SongInfo) -> Unit,
-    modifier: Modifier = Modifier,
-    navController: NavHostController = rememberNavController(),
-) {
-    NavHost(navController = navController,
-        startDestination = startDestination,
+fun SongsManage(navController: NavHostController, modifier: Modifier = Modifier) {
+
+    // 显示在界面上的歌曲
+    var songsToShow by remember { mutableStateOf(listOf<SongInfo>()) }
+    // 将要添加的歌曲
+    var songsToAdd by remember { mutableStateOf(listOf<SongInfo>()) }
+    // 添加目标播单
+    var targetPlaylist by remember { mutableStateOf("") }
+
+    // 显示专辑中的歌曲
+    val showSongList: (List<SongInfo>) -> Unit = {
+        songsToShow = it
+        navController.navigate("OtherSongs")
+    }
+
+    // 将选中歌曲信息赋值到songList中并导航到播单选择界面
+    val selectSongListToAdd: (List<SongInfo>) -> Unit = {
+        songsToAdd = it
+        navController.navigate("PlaylistSelections")
+    }
+
+    // 选中播单作为添加目标
+    val selectPlaylist: (String) -> Unit = {
+        targetPlaylist = it
+        songPlayer!!.addSongToPlaylist(targetPlaylist, songsToAdd)
+        navController.popBackStack()
+        songPlayer!!.reloadPlaylist()
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = "CurrentPlaylist",
         modifier = modifier
     ) {
-        composable("Songs") {
-            PlayingList(
-                songPlayer!!.currentPlayList,
-                onClickPlayMode,
-                onCurrentSongChange
-            )
+        composable("CurrentPlaylist") {
+            CurrentPlayingList()
         }
         composable("Albums") {
-            val albumList = songPlayer!!.viewModel.albumList.observeAsState()
-            AlbumList(albumList.value!!)
+            AlbumList(onItemClick = showSongList, addToPlaylist = selectSongListToAdd)
         }
-        composable("Artists") { Text("test3") }
-        composable("Playlists") { Text("test4") }
-        composable("Folder") { Text("test5") }
+        composable("Artists") {
+            ArtistList(onItemClick = showSongList, addToPlaylist = selectSongListToAdd)
+        }
+        composable("Playlists") {
+            Playlists(onItemClick = showSongList, addToOtherHandler = selectSongListToAdd)
+        }
+        composable("Folders") {
+            Folders()
+        }
+        composable("OtherSongs") {
+            SongList(songsData = songsToShow)
+        }
+        composable("PlaylistSongs") {
+            SongsFromPlaylist(songsData = songsToShow)
+        }
+        composable("PlaylistSelections") {
+            PlaylistSelections(dataCount = songsToAdd.size, confirmPlaylistToAdd = selectPlaylist)
+        }
     }
+
 }
 
-/** 顶栏 有1+3个按钮 用于呼出侧边菜单 或者通向不同的界面 */
+/** 顶栏 有1+3个按钮，用于呼出侧边菜单，或者通向不同的界面？ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(modifier: Modifier = Modifier) {
+
     TopAppBar(
         title = {},
         modifier = modifier,
@@ -300,38 +286,44 @@ fun TopBar(modifier: Modifier = Modifier) {
             actionIconContentColor = White,
         )
     )
+
 }
 
 /** 顶端tab横向菜单，有5个菜单项 */
 @Composable
 fun TopTab(navController: NavHostController, modifier: Modifier = Modifier) {
+
+    var index = 0
     var selectedTabIndex: Int by remember { mutableIntStateOf(0) }
-    // Tab菜单组件的菜单项
-    val titles = listOf<Int>(
-        R.string.main_tabitem_songs,
-        R.string.main_tabitem_albums,
-        R.string.main_tabitem_artists,
-        R.string.main_tabitem_playlist,
-        R.string.main_tabitem_folder
+    // Tab菜单组件的菜单项数据
+    val titles = mapOf<Int, String>(
+        R.string.main_tabitem_songs to "CurrentPlaylist",
+        R.string.main_tabitem_albums to "Albums",
+        R.string.main_tabitem_artists to "Artists",
+        R.string.main_tabitem_playlist to "Playlists",
+        R.string.main_tabitem_folder to "Folders"
     )
+
     TabRow(selectedTabIndex, modifier) {
-        titles.forEachIndexed { index, it ->
-            val title = stringResource(it)
-            Tab(selected = false,
+        titles.forEach { (str, route) ->
+            val itemIndex = index
+            Tab(
+                selected = false,
                 onClick = {
-                    navController.navigate(title)
-                    selectedTabIndex = index
+                    navController.navigate(route)
+                    selectedTabIndex = itemIndex
                 },
-                text = { Text(text = stringResource(it), maxLines = 1) })
+                text = { Text(stringResource(str), maxLines = 1) }
+            )
+            index += 1
         }
     }
+
 }
 
-/**
- * 预览
- * */
+/** 预览 */
 @Preview(showBackground = true)
 @Composable
 fun MainPreview() {
-    MainContent()
+
 }

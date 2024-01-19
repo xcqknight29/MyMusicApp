@@ -1,40 +1,54 @@
 package com.mika.mymusicapplication.viewModel
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.ui.components.PlayMode
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 
 class MyViewModel: ViewModel() {
-    private var _isPlaying = MutableLiveData(false)
-    val isPlaying: LiveData<Boolean> get() = _isPlaying
-
-    private var _playMode = MutableLiveData(PlayMode.SEQUENTIAL)
-    val playMode: LiveData<PlayMode> get() = _playMode
-
-    private var _currentPlayIndex = MutableLiveData(0)
-    val currentPlayIndex: LiveData<Int> get() = _currentPlayIndex
-
-    private var _currentPlayList = MutableLiveData(mutableListOf<SongInfo>())
-    val currentPlayList: LiveData<MutableList<SongInfo>> get() = _currentPlayList
-
-    private var _albumList = MutableLiveData(mutableListOf<MutableList<SongInfo>>())
-    val albumList: LiveData<MutableList<MutableList<SongInfo>>> get() = _albumList
+    // 当前播放器是否在播放
+    private var _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> get() = _isPlaying
+    // 当前播放模式
+    private var _playMode = MutableStateFlow(PlayMode.SEQUENTIAL)
+    val playMode: StateFlow<PlayMode> get() = _playMode
+    // 当前播放的歌曲的索引
+    private var _currentPlayIndex = MutableStateFlow(0)
+    val currentPlayIndex: StateFlow<Int> get() = _currentPlayIndex
+    // 当前播放的播单
+    private var _currentPlayList = MutableStateFlow(listOf<SongInfo>())
+    val currentPlayList: StateFlow<List<SongInfo>> get() = _currentPlayList
+    // 专辑列表
+    private var _albumMap = MutableStateFlow(mapOf<String, List<SongInfo>>())
+    val albumMap: StateFlow<Map<String, List<SongInfo>>> get() = _albumMap
+    // 艺术家列表
+    private var _artistMap = MutableStateFlow(mapOf<String, List<SongInfo>>())
+    val artistMap: StateFlow<Map<String, List<SongInfo>>> get() = _artistMap
+    // 播单列表
+    private var _playlistMap = MutableStateFlow(mapOf<String, List<SongInfo>>())
+    val playlistMap: StateFlow<Map<String, List<SongInfo>>> get() = _playlistMap
 
     fun setIsPlaying(isPlaying: Boolean) {
-        _isPlaying.postValue(isPlaying)
+        _isPlaying.update { isPlaying }
     }
     fun setPlayMode(playMode: PlayMode) {
-        _playMode.postValue(playMode)
+        _playMode.update { playMode }
     }
     fun setCurrentPlayIndex(currentPlayIndex: Int) {
-        _currentPlayIndex.postValue(currentPlayIndex)
+        _currentPlayIndex.update { currentPlayIndex }
     }
-    fun setCurrentPlayList(currentPlayList: MutableList<SongInfo>) {
-        _currentPlayList.postValue(currentPlayList)
+    fun setCurrentPlayList(currentPlayList: List<SongInfo>) {
+        _currentPlayList.update { currentPlayList }
     }
-    fun setAlbumList(albumList: MutableList<MutableList<SongInfo>>) {
-        _albumList.postValue(albumList)
+    fun setAlbumMap(albumList: Map<String, List<SongInfo>>) {
+        _albumMap.update { albumList }
+    }
+    fun setArtistMap(artistList: Map<String, List<SongInfo>>) {
+        _artistMap.update { artistList }
+    }
+    fun setPlaylistMap(playlists: Map<String, List<SongInfo>>) {
+        _playlistMap.update { playlists }
     }
 }
