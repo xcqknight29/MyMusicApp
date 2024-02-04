@@ -2,13 +2,11 @@ package com.mika.mymusicapplication.model
 
 import android.graphics.Bitmap
 
-data class SongInfo(
+data class AlbumInfo(
     var title: String,
-    var album: String,
     var artist: String,
-    var uri: String,
-    var duration: Int,
-    var size: Int,
+    var songCount: Int,
+    var songList: List<SongInfo> = listOf(),
     var thumbnail: Bitmap? = null,
     var albumArt: String? = null,
 )

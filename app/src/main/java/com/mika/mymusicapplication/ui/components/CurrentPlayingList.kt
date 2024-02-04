@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,111 +37,81 @@ import androidx.compose.ui.unit.sp
 import com.mika.mymusicapplication.R
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.songPlayer
+import com.mika.mymusicapplication.util.PlayMode
 
 /** 当前播放歌曲列表 */
 @Composable
 fun CurrentPlayingList(modifier: Modifier = Modifier) {
-    val currentPlayList = songPlayer!!.viewModel.currentPlayList.collectAsState().value
+
+    val currentPlayList by songPlayer!!.viewModel.currentPlayList.collectAsState()
 
     LazyColumn (modifier = modifier) {
+
         item {
-            var showMenu by remember { mutableStateOf(false) }
-            Row(
-                modifier = Modifier
-                    .clickable { showMenu = !showMenu }
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                val songsIconStyle = Modifier.size(30.dp)
-                val playTextStyle = Modifier.padding(horizontal = 4.dp)
-                val playMode by songPlayer!!.viewModel.playMode.collectAsState()
-
-                when (playMode) {
-                    PlayMode.SEQUENTIAL -> {
-                        Icon(painterResource(R.drawable.songs_repeat), "list_repeat", songsIconStyle)
-                        Text(stringResource(R.string.songs_loopplay), playTextStyle)
-                    }
-                    PlayMode.SHUFFLE -> {
-                        Icon(painterResource(R.drawable.songs_shuffle), "random", songsIconStyle)
-                        Text(stringResource(R.string.songs_shuffleplayback), playTextStyle)
-                    }
-                    else -> {
-                        Icon(painterResource(R.drawable.songs_repeatone), "repeat_one", songsIconStyle)
-                        Text(stringResource(R.string.songs_repeatone), playTextStyle)
-                    }
-                }
-            }
-            // 下拉菜单
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.songs_loopplay)) },
-                    onClick = {
-                        songPlayer!!.changePlayMode(PlayMode.SEQUENTIAL)
-                        showMenu = false
-                    },
-                    leadingIcon = { Icon(painterResource(R.drawable.songs_repeat), "list_repeat") }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.songs_shuffleplayback)) },
-                    onClick = {
-                        songPlayer!!.changePlayMode(PlayMode.SHUFFLE)
-                        showMenu = false
-                    },
-                    leadingIcon = { Icon(painterResource(R.drawable.songs_shuffle), "random") }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.songs_repeatone)) },
-                    onClick = {
-                        songPlayer!!.changePlayMode(PlayMode.LOOP)
-                        showMenu = false
-                    },
-                    leadingIcon = { Icon(painterResource(R.drawable.songs_repeatone), "repeat_one") }
-                )
-            }
+            PlayModeDropdownMenu()
         }
+
         items(currentPlayList) { item ->
-            SongItem(
-                item,
-                Modifier
-                    .height(48.dp)
-                    .fillMaxWidth()
-            ) { expanded, onDismissRequest ->
-                DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest) {
-                    DropdownMenuItem(text = { /*TODO*/ }, onClick = { /*TODO*/ })
+            Row {
+
+                SongItem(
+                    item,
+                    Modifier
+                        .height(48.dp)
+                )
+
+                Column(
+                    modifier = Modifier.height(48.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+
+                    var showMenu by remember { mutableStateOf(false) }
+
+                    // 按下呼出下拉菜单
+                    Icon(
+                        painterResource(R.drawable.more_buttom),
+                        "more",
+                        Modifier
+                            .requiredSize(32.dp)
+                            .clickable { showMenu = true }
+                    )
+
+                    CurrentListDropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        itemData = item,
+                    )
+
                 }
+
             }
+
         }
+
         item { Spacer(Modifier.height(55.dp)) }
+
     }
+
 }
-
-
 
 /** 单首歌曲项 */
 @Composable
 fun SongItem(
-    item: SongInfo,
+    itemData: SongInfo,
     modifier: Modifier = Modifier,
-    dropdownMenu: @Composable ((expanded: Boolean, onDismissRequest: () -> Unit) -> Unit)? = null
 ) {
 
     Row(
-        modifier = modifier
+        modifier
             .heightIn(min = 32.dp)
-            .clickable { songPlayer!!.changeCurrentSong(item) },
+            .clickable { songPlayer!!.changeCurrentSong(itemData) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-
-        // 是否显示菜单
-        var showMenu by remember { mutableStateOf(false) }
-
         Column {
             // 歌曲标题
             Text(
-                item.title,
+                itemData.title,
                 Modifier
                     .padding(horizontal = 16.dp)
                     .fillMaxWidth(0.9f),
@@ -147,26 +120,158 @@ fun SongItem(
             )
             // 作者
             Text(
-                item.artist,
+                itemData.artist,
                 Modifier.padding(horizontal = 16.dp),
                 fontSize = 12.sp,
                 maxLines = 1
             )
         }
+    }
 
-        if (dropdownMenu != null) {
-            Column {
-                // 按下呼出下拉菜单
-                Icon(
-                    painterResource(R.drawable.more_buttom),
-                    "more",
-                    Modifier
-                        .requiredSize(32.dp)
-                        .clickable { showMenu = true }
-                )
-                dropdownMenu(showMenu, { showMenu = false })
+}
+
+/** PlayMode menu  */
+@Composable
+fun PlayModeDropdownMenu(modifier: Modifier = Modifier) {
+
+    var showMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .clickable { showMenu = !showMenu }
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        val songsIconStyle = Modifier.size(30.dp)
+        val playTextStyle = Modifier.padding(horizontal = 4.dp)
+        val playMode by songPlayer!!.viewModel.playMode.collectAsState()
+
+        Icon(painterResource(
+            when (playMode) {
+                PlayMode.SEQUENTIAL -> {R.drawable.songs_repeat}
+                PlayMode.SHUFFLE -> {R.drawable.songs_shuffle}
+                else -> {R.drawable.songs_repeatone}
             }
+        ), "icon", songsIconStyle)
+        Text(stringResource(
+            when (playMode) {
+                PlayMode.SEQUENTIAL -> {R.string.songs_loopplay}
+                PlayMode.SHUFFLE -> {R.string.songs_shuffleplayback}
+                else -> {R.string.songs_repeatone}
+            }
+        ), playTextStyle)
+
+        // 下拉菜单
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.songs_loopplay)) },
+                onClick = {
+                    songPlayer!!.changePlayMode(PlayMode.SEQUENTIAL)
+                    showMenu = false
+                },
+                leadingIcon = { Icon(painterResource(R.drawable.songs_repeat), "list_repeat") }
+            )
+
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.songs_shuffleplayback)) },
+                onClick = {
+                    songPlayer!!.changePlayMode(PlayMode.SHUFFLE)
+                    showMenu = false
+                },
+                leadingIcon = { Icon(painterResource(R.drawable.songs_shuffle), "random") }
+            )
+
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.songs_repeatone)) },
+                onClick = {
+                    songPlayer!!.changePlayMode(PlayMode.LOOP)
+                    showMenu = false
+                },
+                leadingIcon = { Icon(painterResource(R.drawable.songs_repeatone), "repeat_one") }
+            )
+
         }
+
+    }
+
+}
+
+/** 下降菜单 */
+@Composable
+fun CurrentListDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    itemData: SongInfo,
+    modifier: Modifier = Modifier,
+) {
+
+    var showDialog by remember { mutableStateOf(false) }
+
+    DropdownMenu(
+        modifier = modifier,
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+    ) {
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.delete)) },
+            onClick = {
+                songPlayer!!.deleteSongFromCurrent(itemData)// 删除当前歌曲
+                onDismissRequest()
+            },
+        )
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.delete_all)) },
+            onClick = {
+                showDialog = true
+                onDismissRequest()
+            },
+        )
+
+    }
+
+    DeleteConfirmDialog(
+        expended = showDialog,
+        onDismissRequest = { showDialog = false },
+    )
+
+}
+
+/** 确认删除全部歌曲对话框 */
+@Composable
+fun DeleteConfirmDialog(
+    expended: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+
+    if (expended) {
+
+        AlertDialog(
+            modifier = modifier,
+            onDismissRequest = onDismissRequest,
+            text = { Text(stringResource(R.string.delete_all_text)) },
+            dismissButton = {
+                TextButton(onClick = onDismissRequest) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    songPlayer!!.deleteAllFromCurrent()
+                    onDismissRequest()
+                }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+        )
 
     }
 
@@ -175,6 +280,5 @@ fun SongItem(
 @Preview(showBackground = true)
 @Composable
 fun SongsPreview() {
-    val songInfo = SongInfo("song1song1song1", "", "", "", 0, 0)
-    SongItem(songInfo)
+
 }

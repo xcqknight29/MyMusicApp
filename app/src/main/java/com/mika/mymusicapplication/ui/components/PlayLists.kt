@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mika.mymusicapplication.R
+import com.mika.mymusicapplication.model.Playlist
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.songPlayer
 
@@ -82,7 +83,7 @@ fun Playlists(
             // 播单展示方式: { 0 -> 条状, 1 -> 盒状 }
             var itemDisplay by remember { mutableIntStateOf(0) }
             // 从ViewModel中获取播单Map
-            val playlists by songPlayer!!.viewModel.playlistMap.collectAsState()
+            val playlists by songPlayer!!.viewModel.playlistList.collectAsState()
 
             Row(
                 modifier = Modifier
@@ -105,7 +106,7 @@ fun Playlists(
                 LazyColumn {
                     playlists.forEach {
                         item {
-                            PlaylistColumnItem(it.key, it.value, onItemClick, Modifier.fillMaxWidth(), selectPlaylistToAdd = addToOtherHandler)
+                            PlaylistColumnItem(it, onItemClick, Modifier.fillMaxWidth(), selectPlaylistToAdd = addToOtherHandler)
                         }
                     }
                 }
@@ -113,7 +114,7 @@ fun Playlists(
                 LazyVerticalGrid(GridCells.Adaptive(minSize = 100.dp)) {
                     playlists.forEach {
                         item {
-                            PlaylistGridItem(it.key, it.value, onItemClick, selectPlaylistToAdd =  addToOtherHandler)
+                            PlaylistGridItem(it, onItemClick, selectPlaylistToAdd =  addToOtherHandler)
                         }
                     }
                 }
@@ -133,8 +134,7 @@ fun Playlists(
 
 @Composable
 fun PlaylistColumnItem(
-    title: String,
-    dataList: List<SongInfo>,
+    itemData: Playlist,
     onItemClick: (List<SongInfo>) -> Unit,
     modifier: Modifier = Modifier,
     selectPlaylistToAdd: ((List<SongInfo>) -> Unit)? = null,
@@ -143,7 +143,7 @@ fun PlaylistColumnItem(
     Row(
         modifier = modifier
             .padding(horizontal = 4.dp, vertical = 4.dp)
-            .clickable { onItemClick(dataList) },
+            .clickable { onItemClick(itemData.data!!) },
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -163,7 +163,7 @@ fun PlaylistColumnItem(
 
         Column(Modifier.fillMaxWidth(0.8f)) {
             // 专辑标题
-            Text(title, maxLines = 2)
+            Text(itemData.name, maxLines = 2)
         }
 
         Column {
@@ -176,8 +176,8 @@ fun PlaylistColumnItem(
             // 下拉菜单
             PlaylistDropdownMenu(
                 expanded = showMenu,
-                playlistName = title,
-                songsData = dataList,
+                playlistName = itemData.name,
+                songsData = itemData.data!!,
                 onDismissRequest = { showMenu = false },
                 addToOtherHandler = selectPlaylistToAdd
             )
@@ -190,8 +190,7 @@ fun PlaylistColumnItem(
 
 @Composable
 fun PlaylistGridItem(
-    title: String,
-    dataList: List<SongInfo>,
+    itemData: Playlist,
     onItemClick: (List<SongInfo>) -> Unit,
     modifier: Modifier = Modifier,
     selectPlaylistToAdd: ((List<SongInfo>) -> Unit)? = null,
@@ -209,7 +208,7 @@ fun PlaylistGridItem(
             Modifier.pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = { showMenu = !showMenu },
-                    onPress = { onItemClick(dataList) }
+                    onPress = { onItemClick(itemData.data!!) }
                 )
             }
         ) {
@@ -230,7 +229,7 @@ fun PlaylistGridItem(
 
             // 专辑名称
             Text(
-                text = title,
+                text = itemData.name,
                 modifier = Modifier.heightIn(min = 34.dp),
                 maxLines = 2
             )
@@ -238,8 +237,8 @@ fun PlaylistGridItem(
             // 下拉菜单
             PlaylistDropdownMenu(
                 expanded = showMenu,
-                playlistName = title,
-                songsData = dataList,
+                playlistName = itemData.name,
+                songsData = itemData.data!!,
                 onDismissRequest = { showMenu = false },
                 addToOtherHandler = selectPlaylistToAdd
             )
@@ -378,8 +377,6 @@ fun PlaylistSelections(
     modifier: Modifier = Modifier
 ) {
 
-    // 从ViewModel中获取playlistMap
-    val playlistMap by songPlayer!!.viewModel.playlistMap.collectAsState()
     // 显示对话框
     var showDialog by remember { mutableStateOf(false) }
     // 被选中作为添加目标的播单
@@ -392,7 +389,7 @@ fun PlaylistSelections(
     }
 
     // 播单列表
-    ItemList(listData = playlistMap, modifier = modifier, onItemClick = selectAddToPlaylist)
+    PlaylistList(onItemClick = selectAddToPlaylist, modifier = modifier)
 
     // 弹出对话框确认添加入播单
     if (showDialog) {
@@ -422,4 +419,161 @@ fun PlaylistSelections(
         )
     }
 
+}
+
+/** item列表，可以为Album、Artist和Playlist */
+@Composable
+fun PlaylistList(
+    modifier: Modifier = Modifier,
+    onItemClick: ((String) -> Unit)? = null,
+    dropdownMenu: @Composable ((Boolean, List<SongInfo>, () -> Unit) -> Unit)? = null
+) {
+
+    Column(
+        modifier
+            .fillMaxHeight()
+            .background(Color.White)
+    ) {
+
+        // 专辑展示方式: { 0 -> 条状, 1 -> 盒状 }
+        var itemDisplay by remember { mutableIntStateOf(0) }
+
+        val playlistList by songPlayer!!.viewModel.playlistList.collectAsState()
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 8.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            if (itemDisplay == 0) {
+                IconButton(onClick = { itemDisplay = 1 }) {
+                    Icon(painterResource(R.drawable.display_square), "square")
+                }
+            } else {
+                IconButton(onClick = { itemDisplay = 0 }) {
+                    Icon(painterResource(R.drawable.player_list), "list")
+                }
+            }
+        }
+
+        if (itemDisplay == 0) {
+            LazyColumn {
+                playlistList.forEach {
+                    item {
+                        PlaylistSelectionColumnItem(it, onItemClick, Modifier.fillMaxWidth(), dropdownMenu)
+                    }
+                }
+            }
+        } else {
+            LazyVerticalGrid(GridCells.Adaptive(minSize = 100.dp)) {
+                playlistList.forEach {
+                    item {
+                        PlaylistSelectionGridItem(it, onItemClick, Modifier, dropdownMenu)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(55.dp))
+
+    }
+
+}
+
+@Composable
+fun PlaylistSelectionColumnItem(
+    itemData: Playlist,
+    onItemClick: ((String) -> Unit)?,
+    modifier: Modifier = Modifier,
+    dropdownMenu: (@Composable (Boolean, List<SongInfo>, () -> Unit) -> Unit)? = null,
+) {
+
+    Row(
+        modifier = modifier
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .clickable { onItemClick?.let { it(itemData.name) } },
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+
+        // 显示菜单
+        var showMenu: Boolean by remember { mutableStateOf(false) }
+
+        // 专辑封面
+        Image(
+            painterResource(R.drawable.song_cover_test),
+            "cover",
+            Modifier
+                .background(Color.Gray)
+                .width(40.dp)
+                .aspectRatio(1f),
+        )
+
+        Column(Modifier.fillMaxWidth(0.8f)) {
+            // 专辑标题
+            Text(itemData.name, maxLines = 2)
+        }
+
+        if (dropdownMenu != null) {
+            Column {
+                // 调出下拉菜单
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(painterResource(R.drawable.more_buttom), "more detail")
+                }
+                // 下拉菜单
+                dropdownMenu(showMenu, itemData.data!!) { showMenu = false }
+            }
+        }
+
+    }
+
+}
+
+@Composable
+fun PlaylistSelectionGridItem(
+    itemData: Playlist,
+    onItemClick: ((String) -> Unit)?,
+    modifier: Modifier = Modifier,
+    dropdownMenu: (@Composable (Boolean, List<SongInfo>, () -> Unit) -> Unit)? = null,
+) {
+    Box(
+        modifier
+            .padding(2.dp)
+            .fillMaxWidth()
+            .clickable { onItemClick?.let { it(itemData.name) } }
+    ) {
+        var showMenu: Boolean by remember { mutableStateOf(false) }
+        Column(
+//            Modifier.combinedClickable(onClick = {}, onLongClick = {})
+            Modifier.pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { showMenu = !showMenu },
+                    onPress = {  }
+                )
+            }
+        ) {
+            // 专辑封面
+            Image(
+                painterResource(R.drawable.song_cover_test),
+                "cover",
+                modifier = Modifier
+                    .background(Color.Gray)
+                    .fillMaxWidth()
+                    .aspectRatio(1f) // 固定长宽比
+            )
+            Column(verticalArrangement = Arrangement.SpaceAround) {
+                // 专辑名称
+                Text(
+                    text = itemData.name,
+                    modifier = Modifier.heightIn(min = 34.dp),
+                    maxLines = 2
+                )
+            }
+            if (dropdownMenu != null) {
+                // 下拉菜单
+                dropdownMenu(showMenu, itemData.data!!) { showMenu = false }
+            }
+        }
+    }
 }

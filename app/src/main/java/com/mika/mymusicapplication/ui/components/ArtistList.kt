@@ -51,7 +51,7 @@ fun ArtistList(
     modifier: Modifier = Modifier,
 ) {
 
-    val artistListMap by songPlayer!!.viewModel.artistMap.collectAsState()
+    val artistList by songPlayer!!.viewModel.artistList.collectAsState()
 
     Column(
         modifier
@@ -59,7 +59,7 @@ fun ArtistList(
             .background(Color.White)
     ) {
 
-        // 专辑展示方式: { 0 -> 条状, 1 -> 盒状 }
+        // 专辑展示方式: { 0->条状, 1->盒状 }
         var itemDisplay by remember { mutableIntStateOf(0) }
 
         Row(
@@ -81,17 +81,17 @@ fun ArtistList(
 
         if (itemDisplay == 0) {
             LazyColumn {
-                artistListMap.forEach {
+                artistList.forEach {
                     item {
-                        ArtistColumnItem(it.key, it.value, onItemClick, addToPlaylist, Modifier.fillMaxWidth())
+                        ArtistColumnItem(it.name, it.songList!!, onItemClick, addToPlaylist, Modifier.fillMaxWidth())
                     }
                 }
             }
         } else {
             LazyVerticalGrid(GridCells.Adaptive(minSize = 100.dp)) {
-                artistListMap.forEach {
+                artistList.forEach {
                     item {
-                        ArtistGridItem(it.key, it.value, onItemClick, addToPlaylist)
+                        ArtistGridItem(it.name, it.songList!!, onItemClick, addToPlaylist)
                     }
                 }
             }
@@ -248,28 +248,32 @@ fun ArtistDropdownMenu(
 @Composable
 fun ArtistListPreview() {
 
-    val artistList = MutableList(8) {artistIndex ->
-        MutableList(4) { songIndex ->
-            SongInfo(
-                "song - $songIndex",
-                "album - $artistIndex",
-                "artist - $artistIndex",
-                "uri - $songIndex",
-                0,
-                0
-            )
-        }
-    }
-    val artist = MutableList(4) { songIndex ->
-        SongInfo(
-            "song - $songIndex",
-            "album - 1",
-            "artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 ",
-            "uri - $songIndex",
-            0,
-            0
-        )
-    }
-    artistList.add(1, artist)
+//    val artistList = MutableList(8) {artistIndex ->
+//        MutableList(4) { songIndex ->
+//            SongInfo(
+//                "song - $songIndex",
+//                "album - $artistIndex",
+//                "artist - $artistIndex",
+//                "uri - $songIndex",
+//                null,
+//                null,
+//                0,
+//                0
+//            )
+//        }
+//    }
+//    val artist = MutableList(4) { songIndex ->
+//        SongInfo(
+//            "song - $songIndex",
+//            "album - 1",
+//            "artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 artist - 1 ",
+//            "uri - $songIndex",
+//            null,
+//            null,
+//            0,
+//            0
+//        )
+//    }
+//    artistList.add(1, artist)
 
 }

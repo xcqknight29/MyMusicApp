@@ -12,7 +12,7 @@
     <string name="position">position</string>
     <string name="song_details">song details</string>
     <string name="song_alert">
-        <b>Title:</b>\t %s \n<b>Album:</b>\t %s \n<b>Artist:</b>\t %s \n<b>Uri:</b>\t %s \n<b>Total time:</b>\t %s \n<b>File size:</b>\t %s
+        <b>Title:</b>\t %s \n<b>Album:</b>\t %s \n<b>Artist:</b>\t %s \n<b>Uri:</b>\t %s \n<b>Total time:</b>\t %d \n<b>File size:</b>\t %d
     </string>
     <string name="album_detail">Album detail</string>
     <string name="add_to_current_playlist">Add to current playlist</string>
@@ -30,7 +30,9 @@
     <string name="add_song_confirm">Add %d songs to playlist %s?</string>
     <string name="confirm">Confirm</string>
     <string name="replace_current_playlist">Replace current playlist</string>
-    <string name="delete">delete</string>
+    <string name="delete">Delete</string>
+    <string name="delete_all">Delete all</string>
     <string name="delete_playlist_title">Delete playlist %s?</string>
     <string name="delete_playlist_text">You will lose this playlist forever. Make sure you think clearly.</string>
+    <string name="delete_all_text">Delete all song from current playlist?</string>
 </resources>

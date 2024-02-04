@@ -42,15 +42,17 @@ fun SongList(
 @Preview(showBackground = true)
 @Composable
 fun SongListPreview() {
-    val songsData: List<SongInfo> = List(10) {
-        SongInfo(
-            "title-1",
-            "album-1",
-            "artist-1",
-            "uri-1",
-            0,
-            0
-        )
-    }
-    SongList(songsData)
+//    val songsData: List<SongInfo> = List(10) {
+//        SongInfo(
+//            "title-1",
+//            "album-1",
+//            "artist-1",
+//            "uri-1",
+//            null,
+//            null,
+//            0,
+//            0
+//        )
+//    }
+//    SongList(songsData)
 }

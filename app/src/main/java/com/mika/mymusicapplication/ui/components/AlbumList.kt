@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mika.mymusicapplication.R
 import com.mika.mymusicapplication.alertDialogBuilder
+import com.mika.mymusicapplication.model.AlbumInfo
 import com.mika.mymusicapplication.model.SongInfo
 import com.mika.mymusicapplication.songPlayer
 
@@ -55,7 +57,7 @@ fun AlbumList(
     modifier: Modifier = Modifier
 ) {
 
-    val albumListMap by songPlayer!!.viewModel.albumMap.collectAsState()
+    val albumList by songPlayer!!.viewModel.albumList.collectAsState()
 
     Column(
         modifier
@@ -72,33 +74,43 @@ fun AlbumList(
                 .padding(end = 8.dp),
             horizontalArrangement = Arrangement.End
         ) {
+
             if (itemDisplay == 0) {
+
                 IconButton(onClick = { itemDisplay = 1 }) {
                     Icon(painterResource(R.drawable.display_square), "square")
                 }
+
             } else {
+
                 IconButton(onClick = { itemDisplay = 0 }) {
                     Icon(painterResource(R.drawable.player_list), "list")
                 }
+
             }
+
         }
 
         if (itemDisplay == 0) {
+
             LazyColumn {
-                albumListMap.forEach {
+                albumList.forEach {
                     item {
-                        AlbumColumnItem(it.key, it.value, onItemClick, addToPlaylist, Modifier.fillMaxWidth())
+                        AlbumColumnItem(it, onItemClick, addToPlaylist, Modifier.fillMaxWidth())
                     }
                 }
             }
+
         } else {
+
             LazyVerticalGrid(GridCells.Adaptive(minSize = 100.dp)) {
-                albumListMap.forEach {
+                albumList.forEach {
                     item {
-                        AlbumGridItem(it.key, it.value, onItemClick, addToPlaylist)
+                        AlbumGridItem(it, onItemClick, addToPlaylist)
                     }
                 }
             }
+
         }
 
         Spacer(Modifier.height(55.dp))
@@ -109,8 +121,7 @@ fun AlbumList(
 
 @Composable
 fun AlbumColumnItem(
-    title: String,
-    dataList: List<SongInfo>,
+    itemData: AlbumInfo,
     onItemClick: (List<SongInfo>) -> Unit,
     selectAlbumToAdd: (List<SongInfo>) -> Unit,
     modifier: Modifier = Modifier,
@@ -119,7 +130,7 @@ fun AlbumColumnItem(
     Row(
         modifier = modifier
             .padding(horizontal = 4.dp, vertical = 4.dp)
-            .clickable { onItemClick(dataList) },
+            .clickable { onItemClick(itemData.songList) },
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -129,9 +140,9 @@ fun AlbumColumnItem(
 
         // 专辑封面
         Image(
-            painterResource(R.drawable.song_cover_test),
-            "cover",
-            Modifier
+            bitmap = itemData.thumbnail!!.asImageBitmap(),
+            contentDescription = "album cover",
+            modifier = Modifier
                 .background(Color.Gray)
                 .width(40.dp)
                 .aspectRatio(1f),
@@ -139,9 +150,9 @@ fun AlbumColumnItem(
 
         Column(Modifier.fillMaxWidth(0.8f)) {
             // 专辑标题
-            Text(text = title, fontSize = 18.sp, maxLines = 1)
+            Text(text = itemData.title, fontSize = 18.sp, maxLines = 1)
             // 专辑作者
-            Text(text = dataList[0].artist, fontSize = 14.sp, maxLines = 1)
+            Text(text = itemData.artist, fontSize = 14.sp, maxLines = 1)
         }
 
         Column {
@@ -152,7 +163,7 @@ fun AlbumColumnItem(
             }
 
             // 下拉菜单
-            AlbumDropdownMenu(showDropDownMenu, dataList, { showDropDownMenu = false }, selectAlbumToAdd)
+            AlbumDropdownMenu(showDropDownMenu, itemData.songList, { showDropDownMenu = false }, selectAlbumToAdd)
 
         }
 
@@ -162,8 +173,7 @@ fun AlbumColumnItem(
 
 @Composable
 fun AlbumGridItem(
-    title: String,
-    dataList: List<SongInfo>,
+    itemData: AlbumInfo,
     onItemClick: (List<SongInfo>) -> Unit,
     selectAlbumToAdd: (List<SongInfo>) -> Unit,
     modifier: Modifier = Modifier,
@@ -180,14 +190,14 @@ fun AlbumGridItem(
             Modifier.pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = { showMenu = !showMenu },
-                    onPress = { onItemClick(dataList) }
+                    onPress = { onItemClick(itemData.songList) }
                 )
             }
         ) {
 
             // 专辑封面
             Image(
-                painterResource(R.drawable.song_cover_test),
+                itemData.thumbnail!!.asImageBitmap(),
                 "cover",
                 modifier = Modifier
                     .background(Color.Gray)
@@ -198,14 +208,14 @@ fun AlbumGridItem(
             Column(verticalArrangement = Arrangement.SpaceAround) {
                 // 专辑名称
                 Text(
-                    text = title,
+                    text = itemData.title,
                     modifier = Modifier.heightIn(min = 34.dp),
                     maxLines = 2
                 )
             }
 
             // 下拉菜单
-            AlbumDropdownMenu(showMenu, dataList, { showMenu = false }, selectAlbumToAdd)
+            AlbumDropdownMenu(showMenu, itemData.songList, { showMenu = false }, selectAlbumToAdd)
 
         }
     }
@@ -271,7 +281,7 @@ fun showAlbumDetail(context: Context, albumSongList: List<SongInfo>) {
         context.resources.getString(R.string.album_info)
             .format(albumSongList[0].album, albumSongList.size, albumSongList[0].artist)
     // 获取对话框对象
-    val alertDialog = alertDialogBuilder!!
+    val alertDialog = alertDialogBuilder
     // 设置对话框的文本
     alertDialog.setMessage(str)
     // 显示对话框
@@ -308,17 +318,19 @@ fun AlbumListPreview() {
 
 //    albumList.add(1, album)
 
-    val albumList = List(4) { songIndex ->
-        SongInfo(
-            "song1",
-            "album1",
-            "artist1",
-            "uri1",
-            0,
-            0
-        )
-    }
-
-    AlbumColumnItem("song1", albumList, {}, {})
+//    val albumList = List(4) { songIndex ->
+//        SongInfo(
+//            "song1",
+//            "album1",
+//            "artist1",
+//            "uri1",
+//            null,
+//            null,
+//            0,
+//            0
+//        )
+//    }
+//
+//    AlbumColumnItem("song1", albumList, {}, {})
 
 }
